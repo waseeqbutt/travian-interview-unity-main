@@ -20,5 +20,11 @@ public class SnakeCollision : MonoBehaviour
         {
             BroadcastSystem.OnHitEnemyEvent?.Invoke(collision.gameObject.name);
         }
+
+        else
+        if (collision.CompareTag(Constants.TriggerTag.Body.ToString()))
+        {
+            BroadcastSystem.OnHitBodyEvent?.Invoke(collision.gameObject.name);
+        }
     }
 }

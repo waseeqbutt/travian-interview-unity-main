@@ -24,9 +24,24 @@ public class SnakeMovement : MonoBehaviour
     private Vector2 _snakeDirection = Vector2.up;
     private float next;
     private bool _isDead = false;
-    private Vector2 _lastPosition;
+    private Vector2 _headLastPosition;
+    private int _itemIndex = 0;
 
-    private List<Transform> _bodies = new List<Transform> ();
+    private List<BodyList> _bodyList = new List<BodyList> ();
+
+    private class BodyList
+    {
+        public Transform Body;
+        public Vector2 NewPosition;
+        public Vector2 LastPosition;
+
+        public BodyList(Transform Body, Vector2 NewPosition, Vector2 LastPosition)
+        {
+            this.Body = Body;
+            this.NewPosition = NewPosition;
+            this.LastPosition = LastPosition;
+        }
+    }
 
     private void OnEnable()
     {
@@ -34,6 +49,7 @@ public class SnakeMovement : MonoBehaviour
         BroadcastSystem.OnClickChangeDirectionEvent += OnChangeDirection;
         BroadcastSystem.OnHitWallEvent += OnDamage;
         BroadcastSystem.OnHitEnemyEvent += OnDamage;
+        BroadcastSystem.OnHitBodyEvent += OnDamage;
     }
 
     private void OnDisable()
@@ -42,6 +58,7 @@ public class SnakeMovement : MonoBehaviour
         BroadcastSystem.OnClickChangeDirectionEvent -= OnChangeDirection;
         BroadcastSystem.OnHitWallEvent -= OnDamage;
         BroadcastSystem.OnHitEnemyEvent -= OnDamage;
+        BroadcastSystem.OnHitBodyEvent -= OnDamage;
     }
 
     // Update is called once per frame
@@ -50,21 +67,31 @@ public class SnakeMovement : MonoBehaviour
         if (_isDead) 
             return;
 
-        if(Time.time > next)
+        if (Time.time > next)
         {
             snakeHead.transform.Translate(_snakeDirection * snakeSpeed);
 
-            if(_bodies.Count > 0)
+            if(_bodyList.Count > 0)
             {
-                for(int i = 0; i < _bodies.Count; i++)
+                for (int i = 0; i < _bodyList.Count; i++)
                 {
-                    _bodies[i].transform.Translate(_snakeDirection * snakeSpeed);
+                    if (i == 0)
+                    {
+                        _bodyList[i].LastPosition = _bodyList[i].Body.transform.position;
+                        _bodyList[i].NewPosition = _headLastPosition;
+                        _bodyList[i].Body.transform.position = _bodyList[i].NewPosition;
+                    }
+                    else
+                    {
+
+                        _bodyList[i].LastPosition = _bodyList[i].Body.transform.position;
+                        _bodyList[i].NewPosition = _bodyList[i - 1].LastPosition;
+                        _bodyList[i].Body.transform.position = _bodyList[i].NewPosition;
+                    }
                 }
             }
-            else
-            {
-                _lastPosition = snakeHead.transform.position;
-            }
+
+            _headLastPosition = snakeHead.transform.position;
 
             next = Time.time + 0.15f;
         }
@@ -74,27 +101,41 @@ public class SnakeMovement : MonoBehaviour
     {
         Debug.Log($"Got {hitObject.name}");
         GameObject body = Instantiate(snakeBody, transform.position, Quaternion.identity);
-        _bodies.Insert(0, body.transform);
-        
-        if(GetCurrentDirection() == Vector2.up)
-        {
 
+        Transform lastBody;
+
+        if (_itemIndex == 0)
+            lastBody = snakeHead.transform;
+        else
+            lastBody = _bodyList[_itemIndex - 1].Body.transform;
+
+
+        Vector2 pos = body.transform.position;
+
+        if (GetCurrentDirection() == Vector2.up)
+        {
+            pos.y = lastBody.transform.position.y - 0.25f;
         }
         else
         if (GetCurrentDirection() == Vector2.down)
         {
-
+            pos.y = lastBody.transform.position.y + 0.25f;
         }
         else
         if (GetCurrentDirection() == Vector2.left)
         {
-
+            pos.x = lastBody.transform.position.y + 0.25f;
         }
         else
-        if (GetCurrentDirection() == Vector2.up)
+        if (GetCurrentDirection() == Vector2.right)
         {
-
+            pos.x = lastBody.transform.position.y - 0.25f;
         }
+
+        body.transform.position = pos;
+        _bodyList.Add(new BodyList(body.transform, body.transform.position, Vector2.zero));
+
+        _itemIndex++;
     }    
 
     private void OnDamage(string hitObject)
